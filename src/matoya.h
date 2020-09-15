@@ -554,6 +554,8 @@ typedef struct MTY_RenderDesc {
 	uint32_t cropHeight;
 	uint32_t viewWidth;
 	uint32_t viewHeight;
+	bool rotate;
+	bool flip;
 	float aspectRatio;
 	float scale;
 } MTY_RenderDesc;

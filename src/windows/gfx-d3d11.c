@@ -26,6 +26,12 @@ struct psvars {
 	uint32_t __pad[2]; // Constant buffers must be in increments of 16 bytes
 };
 
+struct vsvars {
+	uint32_t flip;
+	uint32_t rotate;
+	uint32_t __pad[2];
+};
+
 struct gfx_d3d11_res {
 	DXGI_FORMAT format;
 	ID3D11Texture2D *texture;
@@ -43,7 +49,9 @@ struct gfx_d3d11 {
 	ID3D11Buffer *vb;
 	ID3D11Buffer *ib;
 	ID3D11Buffer *psb;
+	ID3D11Buffer *vsb;
 	ID3D11Resource *psbres;
+	ID3D11Resource *vsbres;
 	ID3D11InputLayout *il;
 	ID3D11SamplerState *ss_nearest;
 	ID3D11SamplerState *ss_linear;
@@ -107,6 +115,25 @@ bool gfx_d3d11_create(ID3D11Device *device, struct gfx_d3d11 **gfx)
 		goto except;
 	}
 
+	// Vertex Buffer
+	D3D11_BUFFER_DESC vsbd = {0};
+	vsbd.ByteWidth = sizeof(struct vsvars);
+	vsbd.Usage = D3D11_USAGE_DYNAMIC;
+	vsbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	vsbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	e = ID3D11Device_CreateBuffer(device, &vsbd, NULL, &ctx->vsb);
+	if (e != S_OK) {
+		MTY_Log("'ID3D11Device_CreateBuffer' failed with HRESULT 0x%X", e);
+		goto except;
+	}
+
+	e = ID3D11Buffer_QueryInterface(ctx->vsb, &IID_ID3D11Resource, &ctx->vsbres);
+	if (e != S_OK) {
+		MTY_Log("'ID3D11Buffer_QueryInterface' failed with HRESULT 0x%X", e);
+		goto except;
+	}
+
+	// Pixel Buffer
 	D3D11_BUFFER_DESC psbd = {0};
 	psbd.ByteWidth = sizeof(struct psvars);
 	psbd.Usage = D3D11_USAGE_DYNAMIC;
@@ -395,6 +422,22 @@ bool gfx_d3d11_render(struct gfx_d3d11 *ctx, ID3D11Device *device, ID3D11DeviceC
 	ID3D11DeviceContext_OMSetDepthStencilState(context, ctx->dss, 0);
 	ID3D11DeviceContext_RSSetState(context, ctx->rs);
 
+	// Vertex buffer
+	struct vsvars vbuf = {0};
+	vbuf.flip = desc->flip ? 1 : 0;
+	vbuf.rotate = desc->rotate ? 1 : 0;
+
+	D3D11_MAPPED_SUBRESOURCE vres = {0};
+	e = ID3D11DeviceContext_Map(context, ctx->vsbres, 0, D3D11_MAP_WRITE_DISCARD, 0, &vres);
+	if (e != S_OK) {
+		MTY_Log("'ID3D11DeviceContext_Map' failed with HRESULT 0x%X", e);
+		goto except;
+	}
+
+	memcpy(vres.pData, &vbuf, sizeof(struct vsvars));
+	ID3D11DeviceContext_Unmap(context, ctx->vsbres, 0);
+	ID3D11DeviceContext_VSSetConstantBuffers(context, 0, 1, &ctx->vsb);
+
 	// Pixel shader
 	ID3D11DeviceContext_PSSetShader(context, ctx->ps, NULL, 0);
 	ID3D11DeviceContext_PSSetSamplers(context, 0, 1, desc->filter == MTY_FILTER_NEAREST ? &ctx->ss_nearest : &ctx->ss_linear);
@@ -403,6 +446,7 @@ bool gfx_d3d11_render(struct gfx_d3d11 *ctx, ID3D11Device *device, ID3D11DeviceC
 		if (ctx->staging[x].srv)
 			ID3D11DeviceContext_PSSetShaderResources(context, x, 1, &ctx->staging[x].srv);
 
+	// Pixel Buffer
 	struct psvars cb = {0};
 	cb.width = (float) desc->cropWidth;
 	cb.height = (float) desc->cropHeight;
@@ -464,8 +508,14 @@ void gfx_d3d11_destroy(struct gfx_d3d11 **gfx)
 	if (ctx->psbres)
 		ID3D11Resource_Release(ctx->psbres);
 
+	if (ctx->vsbres)
+		ID3D11Resource_Release(ctx->vsbres);
+
 	if (ctx->psb)
 		ID3D11Buffer_Release(ctx->psb);
+
+	if (ctx->vsb)
+		ID3D11Buffer_Release(ctx->vsb);
 
 	if (ctx->ib)
 		ID3D11Buffer_Release(ctx->ib);
