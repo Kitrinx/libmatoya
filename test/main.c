@@ -11,6 +11,8 @@
 #include <string.h>
 #include <inttypes.h>
 
+#include "test_memory.h"
+
 // Framework
 #include "test.h"
 
@@ -28,6 +30,9 @@ int32_t main(int32_t argc, char **argv)
 		return 1;
 
 	if (!file_main())
+		return 1;
+
+	if (!memory_main())
 		return 1;
 
 	return 0;
