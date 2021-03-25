@@ -45,7 +45,18 @@ static bool file_main (void)
 {
 	const char *origin_file = "test_file.txt";
 	const char *origin_file2 = "other_file.txt";
+
+	const char *get_dir = MTY_GetDir(MTY_DIR_HOME);
+	test_cmp("MTY_GetDir1", strlen(get_dir));
+
+	get_dir = MTY_GetDir(MTY_DIR_PROGRAMS);
+	test_cmp("MTY_GetDir2", strlen(get_dir));
+
+	get_dir = MTY_GetDir(MTY_DIR_GLOBAL_HOME);
+	test_cmp("MTY_GetDir3", strlen(get_dir));
+
 	const char *cwd = MTY_GetDir(MTY_DIR_CWD);
+	test_cmp("MTY_GetDir4", strlen(cwd));
 
 	const char *full_path = MTY_JoinPath(cwd, origin_file);
 	test_cmp("MTY_JoinPath", strlen(full_path) > strlen(origin_file) + strlen(cwd));
@@ -87,7 +98,6 @@ static bool file_main (void)
 	bool failed = true;
 	if (list) {
 		for (int32_t x = 0; x < list->len; x++) {
-			printf("%s\n", list->files[x].name);
 			// if (strcmp(".txt", list->files[x].name) < 0) // Will show dirs, working as intended?
 			// 	break;
 			if (!strcmp(origin_file, list->files[x].name)) {
