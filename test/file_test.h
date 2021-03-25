@@ -14,6 +14,7 @@
 // NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #include "matoya.h"
 #include "test.h"
 
@@ -57,15 +58,9 @@ static bool file_main (void)
 	test_cmp("MTY_ReadFile", strlen(g_address_2) == strlen(g_address));
 	MTY_Free(g_address_2);
 
-	// Writetextfile cannot overwrite existing
-	//MTY_DeleteFile(full_path);
-	bool write_failed = MTY_WriteTextFile(full_path, "%s" "a");
-	printf ("Result %d\n", write_failed);
-	if (!write_failed) printf("%s\n", MTY_GetLog());
-	
+	MTY_WriteTextFile(full_path, "%s", "a");
 	MTY_AppendTextToFile(full_path, "%s", g_address);
 	g_address_2 = (char *) MTY_ReadFile(full_path, &read_bytes);
-	printf("%d vs %d\n", strlen(g_address_2) + 1 , strlen(g_address));
 	test_cmp("MTY_AppendTextToFile", g_address_2[0] == 'a' && g_address_2[1] == 'F');
 	MTY_Free(g_address_2);
 
@@ -93,7 +88,7 @@ static bool file_main (void)
 	if (list) {
 		for (int32_t x = 0; x < list->len; x++) {
 			printf("%s\n", list->files[x].name);
-			// if (strcmp(".txt", list->files[x].name) < 0) // Working as intended?
+			// if (strcmp(".txt", list->files[x].name) < 0) // Will show dirs, working as intended?
 			// 	break;
 			if (!strcmp(origin_file, list->files[x].name)) {
 				failed = false;
@@ -110,11 +105,8 @@ static bool file_main (void)
 	full_path = MTY_JoinPath(cwd, "test_dir");
 	MTY_Mkdir(full_path);
 	test_cmp("MTY_Mkdir", MTY_FileExists(full_path));
-	MTY_DeleteFile(full_path);
-	test_cmp("MTY_DeleteFile3", !MTY_FileExists(full_path));
+
+	// FIXME: This will leave an orphaned dir.
 
 	return true;
 }
-
-// MTY_LockFileCreate	Create an MTY_LockFile for signaling resource ownership across processes.
-// MTY_LockFileDestroy	Destroy an MTY_LockFile.
